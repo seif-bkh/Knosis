@@ -24,10 +24,6 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text('From words to worlds.'),
-      ),
-    );
+    return const Scaffold(body: Center(child: Text('From words to worlds.')));
   }
 }
