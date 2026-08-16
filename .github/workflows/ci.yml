@@ -1,0 +1,87 @@
+# Knosis — Continuous Integration
+#
+# Validates every push/PR on the toolchain this project will standardize on:
+#   Flutter 3.47.0 (stable) · Dart 3.13.0 · JDK 17 (Temurin)
+#
+# Stages: checkout → Java → Flutter → Gradle setup → pub get → format → analyze
+#         → test → Android debug APK → Android App Bundle (.aab)
+#
+# NOTE: the release `.aab` step builds with the *debug* signing config that the
+# default Flutter Android template ships with. Production release signing is a
+# separate, later task (keystore + GitHub secrets); it is intentionally not part
+# of this baseline.
+
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+# Cancel superseded runs of the same branch/PR to avoid queue pile-ups.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.47.0"
+  JAVA_VERSION: "17"
+  JAVA_DISTRIBUTION: "temurin"
+
+jobs:
+  build-and-test:
+    name: Format · Analyze · Test · Build (Android)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          # Caches the Flutter SDK and the pub package cache.
+          cache: true
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        # Caches and validates the Gradle wrapper / dependency cache.
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Check formatting
+        run: dart format --set-exit-if-changed .
+
+      - name: Static analysis
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build debug APK
+        run: flutter build apk --debug
+
+      - name: Build Android App Bundle
+        run: flutter build appbundle
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-artifacts
+          path: |
+            build/app/outputs/flutter-apk/app-debug.apk
+            build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
