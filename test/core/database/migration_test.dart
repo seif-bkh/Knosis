@@ -118,7 +118,7 @@ void main() {
       raw.execute(statement);
     }
     raw.execute('PRAGMA user_version = 1');
-    raw.dispose();
+    raw.close();
   }
 
   test('a v1 database keeps every row when it becomes v2', () async {
