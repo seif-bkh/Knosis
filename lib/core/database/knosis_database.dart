@@ -2,6 +2,10 @@ import 'package:drift/drift.dart';
 
 import 'tables.dart';
 
+// Re-exported so callers get the table definitions, the generated row
+// classes and the companions from a single import of the data layer.
+export 'tables.dart';
+
 part 'knosis_database.g.dart';
 
 /// The local database.
