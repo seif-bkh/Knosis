@@ -1,5 +1,12 @@
 import 'package:drift/drift.dart';
 
+// The generated part file lives in this library's scope, so the enums used
+// by textEnum() columns must be imported here even though only tables.dart
+// mentions them directly. Without this, generation succeeds but the
+// generated code does not compile (drift issue 3379).
+import '../../shared/models/book_format.dart';
+import '../../shared/models/book_status.dart';
+import '../../shared/models/chunk_status.dart';
 import 'tables.dart';
 
 // Re-exported so callers get the table definitions, the generated row

@@ -1,4 +1,6 @@
-import 'package:drift/drift.dart';
+// drift exports SQL helpers called isNull/isNotNull that collide with the
+// matchers of the same name from flutter_test.
+import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:knosis/core/database/knosis_database.dart';
