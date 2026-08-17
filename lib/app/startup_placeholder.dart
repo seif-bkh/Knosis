@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../core/text/chunk_size_policy.dart';
-import '../core/text/reading_speed.dart';
+import '../core/database/database_provider.dart';
+import '../core/database/knosis_database.dart';
 import '../core/theme/app_spacing.dart';
-import '../features/reader/data/sample_book.dart';
-import '../features/reader/domain/reader_document.dart';
-import '../features/reader/domain/reader_session.dart';
+import '../features/reader/data/sample_library.dart';
 import '../features/reader/ui/reader_screen.dart';
 import '../shared/strings/app_strings.dart';
 
@@ -13,35 +12,30 @@ import '../shared/strings/app_strings.dart';
 ///
 /// This is deliberately *not* the Welcome or Home screen from
 /// PRODUCT_REPORT.md section 7. It exists only so the shell, themes and
-/// system insets are exercised end to end, and it will be replaced by real
-/// navigation once the data layer lands.
-class StartupPlaceholder extends StatelessWidget {
+/// system insets are exercised end to end, and it will be replaced by the
+/// library once books can be imported.
+class StartupPlaceholder extends ConsumerWidget {
   const StartupPlaceholder({super.key});
 
-  /// Opens the bundled sample text. The library will replace this once books
-  /// can be imported; the reader itself does not care where a document came
-  /// from.
-  void _openReader(BuildContext context) {
-    const ReadingSpeed speed = ReadingSpeed.comfortable;
-    final ReaderDocument document = ReaderDocument.fromText(
-      title: SampleBook.title,
-      text: SampleBook.text,
-      policy: ChunkSizePolicy.forReadingSpeed(speed),
-    );
-    final ReaderSession session = ReaderSession(
-      document: document,
-      speed: speed,
-    );
+  /// Puts the sample book in the library, then opens it. Seeding is
+  /// idempotent, so this is safe to tap twice.
+  Future<void> _openReader(BuildContext context, WidgetRef ref) async {
+    final KnosisDatabase database = ref.read(databaseProvider);
+    await SampleLibrary.ensureSeeded(database);
+    if (!context.mounted) {
+      return;
+    }
 
-    Navigator.of(context).push(
+    await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (BuildContext context) => ReaderScreen(session: session),
+        builder: (BuildContext context) =>
+            const ReaderScreen(bookId: SampleLibrary.bookId),
       ),
     );
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final ThemeData theme = Theme.of(context);
     return Scaffold(
       body: SafeArea(
@@ -60,7 +54,7 @@ class StartupPlaceholder extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 FilledButton(
-                  onPressed: () => _openReader(context),
+                  onPressed: () => _openReader(context, ref),
                   child: const Text(AppStrings.readerStart),
                 ),
               ],

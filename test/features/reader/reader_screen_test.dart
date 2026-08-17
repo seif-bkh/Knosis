@@ -1,49 +1,31 @@
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:knosis/core/text/chunk_size_policy.dart';
-import 'package:knosis/core/text/reading_speed.dart';
+import 'package:knosis/core/database/database_provider.dart';
+import 'package:knosis/core/database/knosis_database.dart';
 import 'package:knosis/core/theme/app_theme.dart';
-import 'package:knosis/features/reader/domain/reader_document.dart';
-import 'package:knosis/features/reader/domain/reader_session.dart';
+import 'package:knosis/features/reader/data/reader_repository.dart';
+import 'package:knosis/features/reader/data/sample_library.dart';
+import 'package:knosis/features/reader/domain/chunk_summary.dart';
 import 'package:knosis/features/reader/ui/reader_screen.dart';
 import 'package:knosis/shared/strings/app_strings.dart';
 
-/// Paragraphs of a known length, each tagged so a test can tell which
-/// passage is on screen.
-String _markedText(int paragraphs) {
-  final List<String> parts = <String>[];
-  for (int i = 1; i <= paragraphs; i++) {
-    parts.add('Marker$i ${List<String>.filled(24, 'word').join(' ')}.');
-  }
-  return parts.join('\n\n');
-}
-
-ReaderSession _session({
-  int paragraphs = 6,
-  int minWords = 20,
-  int maxWords = 30,
-}) {
-  final ReaderDocument document = ReaderDocument.fromText(
-    title: 'Test Book',
-    text: _markedText(paragraphs),
-    policy: ChunkSizePolicy(minWords: minWords, maxWords: maxWords),
+Future<void> _pumpReader(
+  WidgetTester tester,
+  KnosisDatabase db, {
+  String bookId = SampleLibrary.bookId,
+}) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: <Override>[databaseProvider.overrideWithValue(db)],
+      child: MaterialApp(
+        theme: AppTheme.light(),
+        home: ReaderScreen(bookId: bookId),
+      ),
+    ),
   );
-  return ReaderSession(document: document, speed: ReadingSpeed.comfortable);
-}
-
-Widget _app(ReaderSession session) {
-  return MaterialApp(
-    theme: AppTheme.light(),
-    home: ReaderScreen(session: session),
-  );
-}
-
-double _fadeOpacity(WidgetTester tester, String key) {
-  final Finder finder = find.descendant(
-    of: find.byKey(Key(key)),
-    matching: find.byType(AnimatedOpacity),
-  );
-  return tester.widget<AnimatedOpacity>(finder).opacity;
+  await tester.pumpAndSettle();
 }
 
 Future<void> _tapContinue(WidgetTester tester) async {
@@ -55,75 +37,68 @@ Future<void> _tapContinue(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('shows one passage at a time', (tester) async {
-    await tester.pumpWidget(_app(_session()));
-    await tester.pumpAndSettle();
+  late KnosisDatabase db;
+  late ReaderRepository repository;
 
-    expect(find.textContaining('Marker1'), findsOneWidget);
-    expect(find.textContaining('Marker2'), findsNothing);
+  setUp(() async {
+    db = KnosisDatabase(NativeDatabase.memory());
+    repository = ReaderRepository(db);
+    await SampleLibrary.ensureSeeded(db);
   });
 
-  testWidgets('continuing moves to the next passage', (tester) async {
-    await tester.pumpWidget(_app(_session()));
-    await tester.pumpAndSettle();
-
-    await _tapContinue(tester);
-
-    expect(find.textContaining('Marker2'), findsOneWidget);
-    expect(find.textContaining('Marker1'), findsNothing);
+  tearDown(() async {
+    await db.close();
   });
 
-  testWidgets('the end of the text offers no continue', (tester) async {
-    final ReaderSession session = _session(paragraphs: 3);
-    await tester.pumpWidget(_app(session));
-    await tester.pumpAndSettle();
+  testWidgets('opens the book at its first passage', (tester) async {
+    await _pumpReader(tester, db);
+
+    expect(find.textContaining('lighthouse'), findsOneWidget);
+    expect(find.text(AppStrings.readerContinue), findsOneWidget);
+  });
+
+  testWidgets('remembers the position as soon as it opens', (tester) async {
+    final BookRow? before = await repository.book(SampleLibrary.bookId);
+    expect(before!.currentChunkId, isNull);
+
+    await _pumpReader(tester, db);
+
+    final BookRow? after = await repository.book(SampleLibrary.bookId);
+    expect(after!.currentChunkId, isNotNull);
+    expect(after.lastReadAt, isNotNull);
+  });
+
+  testWidgets('continuing moves on and records the new place', (tester) async {
+    await _pumpReader(tester, db);
+    final BookRow? opened = await repository.book(SampleLibrary.bookId);
 
     await _tapContinue(tester);
-    await _tapContinue(tester);
 
-    expect(session.isLast, isTrue);
+    final BookRow? moved = await repository.book(SampleLibrary.bookId);
+    expect(moved!.currentChunkId, isNot(opened!.currentChunkId));
+  });
+
+  testWidgets('reopening resumes where the reader stopped', (tester) async {
+    final List<ChunkSummary> chunks = await repository.chunkIndex(
+      SampleLibrary.bookId,
+    );
+    await repository.savePosition(
+      bookId: SampleLibrary.bookId,
+      chapterId: chunks.last.chapterId,
+      chunkId: chunks.last.id,
+    );
+
+    await _pumpReader(tester, db);
+
+    // The saved chunk is the very last one, so the reader lands on the
+    // final passage: no way onward, and the closing note instead.
     expect(find.text(AppStrings.readerEndOfText), findsOneWidget);
     expect(find.text(AppStrings.readerContinue), findsNothing);
   });
 
-  testWidgets('fades the bottom edge while text continues below', (
-    tester,
-  ) async {
-    final ReaderSession session = _session(
-      paragraphs: 20,
-      minWords: 400,
-      maxWords: 800,
-    );
-    await tester.pumpWidget(_app(session));
-    await tester.pumpAndSettle();
+  testWidgets('says so plainly when there is nothing to read', (tester) async {
+    await _pumpReader(tester, db, bookId: 'a-book-that-is-not-there');
 
-    expect(_fadeOpacity(tester, 'reader.fade.bottom'), 1);
-    expect(_fadeOpacity(tester, 'reader.fade.top'), 0);
-  });
-
-  testWidgets('no fade when the passage fits on screen', (tester) async {
-    await tester.pumpWidget(_app(_session(paragraphs: 1, minWords: 5)));
-    await tester.pumpAndSettle();
-
-    expect(_fadeOpacity(tester, 'reader.fade.bottom'), 0);
-    expect(_fadeOpacity(tester, 'reader.fade.top'), 0);
-  });
-
-  testWidgets('the passage text stays selectable', (tester) async {
-    await tester.pumpWidget(_app(_session()));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(SelectionArea), findsOneWidget);
-  });
-
-  testWidgets('shows where the reader is and what is next', (tester) async {
-    await tester.pumpWidget(_app(_session()));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.textContaining(AppStrings.passageProgress(1, 6)),
-      findsOneWidget,
-    );
-    expect(find.textContaining('about a minute'), findsOneWidget);
+    expect(find.text(AppStrings.readerEmpty), findsOneWidget);
   });
 }

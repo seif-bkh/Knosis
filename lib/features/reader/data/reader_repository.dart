@@ -28,7 +28,7 @@ class ReaderRepository {
   /// Ids and lengths of every chunk in the book, in reading order.
   Future<List<ChunkSummary>> chunkIndex(String bookId) async {
     const String sql =
-        'SELECT id, order_index, word_count FROM chunks '
+        'SELECT id, chapter_id, order_index, word_count FROM chunks '
         'WHERE book_id = ? ORDER BY order_index ASC';
     final query = _database.customSelect(
       sql,
@@ -41,6 +41,7 @@ class ReaderRepository {
       summaries.add(
         ChunkSummary(
           id: row.read<String>('id'),
+          chapterId: row.read<String>('chapter_id'),
           orderIndex: row.read<int>('order_index'),
           wordCount: row.read<int>('word_count'),
         ),

@@ -7,7 +7,14 @@ import 'package:knosis/features/reader/domain/passage_plan.dart';
 List<ChunkSummary> _chunks(int count, {int words = 60}) {
   final List<ChunkSummary> chunks = <ChunkSummary>[];
   for (int i = 0; i < count; i++) {
-    chunks.add(ChunkSummary(id: 'chunk-$i', orderIndex: i, wordCount: words));
+    chunks.add(
+      ChunkSummary(
+        id: 'chunk-$i',
+        chapterId: 'chapter-1',
+        orderIndex: i,
+        wordCount: words,
+      ),
+    );
   }
   return chunks;
 }
@@ -90,9 +97,24 @@ void main() {
 
     test('keeps an oversized chunk in a passage of its own', () {
       final List<ChunkSummary> chunks = <ChunkSummary>[
-        const ChunkSummary(id: 'a', orderIndex: 0, wordCount: 40),
-        const ChunkSummary(id: 'giant', orderIndex: 1, wordCount: 4000),
-        const ChunkSummary(id: 'b', orderIndex: 2, wordCount: 40),
+        const ChunkSummary(
+          id: 'a',
+          chapterId: 'c',
+          orderIndex: 0,
+          wordCount: 40,
+        ),
+        const ChunkSummary(
+          id: 'giant',
+          chapterId: 'c',
+          orderIndex: 1,
+          wordCount: 4000,
+        ),
+        const ChunkSummary(
+          id: 'b',
+          chapterId: 'c',
+          orderIndex: 2,
+          wordCount: 40,
+        ),
       ];
 
       final PassagePlan plan = PassagePlan.from(

@@ -7,11 +7,13 @@
 class ChunkSummary {
   const ChunkSummary({
     required this.id,
+    required this.chapterId,
     required this.orderIndex,
     required this.wordCount,
   });
 
   final String id;
+  final String chapterId;
   final int orderIndex;
   final int wordCount;
 }

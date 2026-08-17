@@ -1,28 +1,127 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/database/knosis_database.dart';
+import '../../../core/text/chunk_size_policy.dart';
+import '../../../core/text/reading_speed.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/reading_theme.dart';
 import '../../../shared/strings/app_strings.dart';
-import '../domain/reader_session.dart';
+import '../data/reader_repository.dart';
+import '../domain/chunk_summary.dart';
+import '../domain/passage_plan.dart';
+import '../state/reading_speed_provider.dart';
 import 'passage_view.dart';
 
 /// The reading surface.
 ///
 /// Deliberately quiet: a way back, the title, a hairline of progress, and
-/// the text. Everything a learner might want to do to a word happens on
-/// request, never on the app's initiative (AGENTS.md section 9).
-class ReaderScreen extends StatefulWidget {
-  const ReaderScreen({required this.session, super.key});
+/// the text. It opens where the reader left off and records where they stop,
+/// so closing the app mid-passage costs nothing.
+class ReaderScreen extends ConsumerStatefulWidget {
+  const ReaderScreen({required this.bookId, super.key});
 
-  final ReaderSession session;
+  final String bookId;
 
   @override
-  State<ReaderScreen> createState() => _ReaderScreenState();
+  ConsumerState<ReaderScreen> createState() => _ReaderScreenState();
 }
 
-class _ReaderScreenState extends State<ReaderScreen> {
-  void _advance() {
-    setState(widget.session.advance);
+class _ReaderScreenState extends ConsumerState<ReaderScreen> {
+  PassagePlan? _plan;
+  String _title = '';
+  String _text = '';
+  int _index = 0;
+  bool _loading = true;
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _open();
+  }
+
+  Future<void> _open() async {
+    final ReaderRepository repository = ref.read(readerRepositoryProvider);
+    final ReadingSpeed speed = ref.read(readingSpeedProvider);
+
+    try {
+      final BookRow? book = await repository.book(widget.bookId);
+      final List<ChunkSummary> chunks = await repository.chunkIndex(
+        widget.bookId,
+      );
+      if (book == null || chunks.isEmpty) {
+        _giveUp();
+        return;
+      }
+
+      final PassagePlan plan = PassagePlan.from(
+        chunks,
+        ChunkSizePolicy.forReadingSpeed(speed),
+      );
+      // Where the reader stopped last time, or the beginning.
+      final int index = plan.indexForChunk(book.currentChunkId);
+      final String text = await _textFor(repository, plan.at(index));
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _plan = plan;
+        _title = book.title;
+        _index = index;
+        _text = text;
+        _loading = false;
+      });
+      await _remember(repository, plan.at(index));
+    } catch (_) {
+      _giveUp();
+    }
+  }
+
+  void _giveUp() {
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _loading = false;
+      _failed = true;
+    });
+  }
+
+  Future<String> _textFor(ReaderRepository repository, PassageSlice slice) {
+    return repository.passageText(
+      widget.bookId,
+      slice.firstOrder,
+      slice.lastOrder,
+    );
+  }
+
+  Future<void> _remember(ReaderRepository repository, PassageSlice slice) {
+    return repository.savePosition(
+      bookId: widget.bookId,
+      chapterId: slice.firstChapterId,
+      chunkId: slice.firstChunkId,
+    );
+  }
+
+  Future<void> _advance() async {
+    final PassagePlan? plan = _plan;
+    if (plan == null || _index >= plan.length - 1) {
+      return;
+    }
+    final ReaderRepository repository = ref.read(readerRepositoryProvider);
+    final PassageSlice next = plan.at(_index + 1);
+    final String text = await _textFor(repository, next);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _index = next.index;
+      _text = text;
+    });
+    await _remember(repository, next);
   }
 
   @override
@@ -30,16 +129,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
     final ThemeData theme = Theme.of(context);
     final ReadingTheme reading =
         theme.extension<ReadingTheme>() ?? ReadingTheme.light;
-    final ReaderSession session = widget.session;
-    final TextStyle? titleStyle = theme.textTheme.titleMedium;
-
-    if (session.document.isEmpty) {
-      return Scaffold(
-        backgroundColor: reading.surface,
-        appBar: AppBar(backgroundColor: reading.surface),
-        body: Center(child: Text(AppStrings.readerEmpty)),
-      );
-    }
+    final PassagePlan? plan = _plan;
 
     return Scaffold(
       backgroundColor: reading.surface,
@@ -47,21 +137,43 @@ class _ReaderScreenState extends State<ReaderScreen> {
         backgroundColor: reading.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: Text(session.document.title, style: titleStyle),
+        title: Text(_title, style: theme.textTheme.titleMedium),
         bottom: _ProgressHairline(
-          fraction: session.progress,
+          fraction: plan == null ? 0 : plan.progressAfter(_index),
           color: theme.colorScheme.primary,
         ),
       ),
-      body: SafeArea(
-        top: false,
-        // A fresh state per passage: the next one always starts at its
-        // first line rather than inheriting the previous scroll offset.
-        child: PassageView(
-          key: ValueKey<int>(session.index),
-          text: session.current.text,
-          footer: _PassageFooter(session: session, onContinue: _advance),
-        ),
+      body: SafeArea(top: false, child: _body(plan)),
+    );
+  }
+
+  Widget _body(PassagePlan? plan) {
+    if (_loading) {
+      // Nothing rather than a spinner: reading a passage from SQLite takes
+      // milliseconds, and a flash of chrome is worse than a blank moment.
+      return const SizedBox.shrink();
+    }
+    if (_failed || plan == null || plan.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Center(child: Text(AppStrings.readerEmpty)),
+      );
+    }
+
+    int? nextWords;
+    if (_index < plan.length - 1) {
+      nextWords = plan.at(_index + 1).wordCount;
+    }
+
+    return PassageView(
+      key: ValueKey<int>(_index),
+      text: _text,
+      footer: _Footer(
+        position: _index + 1,
+        total: plan.length,
+        nextWords: nextWords,
+        speed: ref.watch(readingSpeedProvider),
+        onContinue: _advance,
       ),
     );
   }
@@ -101,38 +213,47 @@ class _ProgressHairline extends StatelessWidget implements PreferredSizeWidget {
 }
 
 /// What waits at the end of a passage: the way onward, or the end.
-class _PassageFooter extends StatelessWidget {
-  const _PassageFooter({required this.session, required this.onContinue});
+class _Footer extends StatelessWidget {
+  const _Footer({
+    required this.position,
+    required this.total,
+    required this.speed,
+    required this.onContinue,
+    this.nextWords,
+  });
 
-  final ReaderSession session;
+  final int position;
+  final int total;
+  final ReadingSpeed speed;
   final VoidCallback onContinue;
+
+  /// Length of the next passage, or null at the end of the text.
+  final int? nextWords;
 
   @override
   Widget build(BuildContext context) {
     final TextStyle? muted = Theme.of(context).textTheme.bodyMedium;
-    final String position = AppStrings.passageProgress(
-      session.displayIndex,
-      session.document.passageCount,
-    );
+    final String where = AppStrings.passageProgress(position, total);
+    final int? words = nextWords;
 
-    if (session.isLast) {
+    if (words == null) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(position, style: muted),
+          Text(where, style: muted),
           const SizedBox(height: AppSpacing.sm),
           Text(AppStrings.readerEndOfText, style: muted),
         ],
       );
     }
 
-    final Duration next = session.nextPassageDuration ?? Duration.zero;
-    final String estimate = AppStrings.aboutMinutes(_minutesOf(next));
+    final int minutes = _minutesOf(speed.timeFor(words));
+    final String estimate = AppStrings.aboutMinutes(minutes);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text('$position  ·  $estimate', style: muted),
+        Text('$where  ·  $estimate', style: muted),
         const SizedBox(height: AppSpacing.md),
         FilledButton.tonal(
           onPressed: onContinue,

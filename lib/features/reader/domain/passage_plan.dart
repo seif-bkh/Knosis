@@ -8,6 +8,7 @@ class PassageSlice {
     required this.firstOrder,
     required this.lastOrder,
     required this.firstChunkId,
+    required this.firstChapterId,
     required this.wordCount,
   });
 
@@ -17,6 +18,7 @@ class PassageSlice {
 
   /// Where a saved position points when this passage is open.
   final String firstChunkId;
+  final String firstChapterId;
 
   final int wordCount;
 }
@@ -60,6 +62,7 @@ class PassagePlan {
           firstOrder: current.first.orderIndex,
           lastOrder: current.last.orderIndex,
           firstChunkId: current.first.id,
+          firstChapterId: current.first.chapterId,
           wordCount: words,
         ),
       );
