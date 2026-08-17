@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 import '../../shared/models/book_format.dart';
 import '../../shared/models/book_status.dart';
 import '../../shared/models/chunk_status.dart';
+import '../../shared/models/reading_mode.dart';
 
 /// An imported book (PRODUCT_REPORT.md section 13.3).
 ///
@@ -95,6 +96,44 @@ class Chunks extends Table {
       textEnum<ChunkStatus>().withDefault(const Constant('unread'))();
   IntColumn get readCount => integer().withDefault(const Constant(0))();
   DateTimeColumn get lastReadAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => <Column<Object>>{id};
+}
+
+/// A stretch of reading (PRODUCT_REPORT.md section 13.6).
+///
+/// There is no userId column: the MVP has no accounts, and everything here
+/// belongs to the one person holding the phone. Adding one later is an
+/// additive migration.
+///
+/// [wordsRead] and [durationSeconds] accumulate as the reader moves through
+/// passages. Together they are the evidence behind a measured reading speed,
+/// which is what sizes future passages.
+@DataClassName('ReadingSessionRow')
+class ReadingSessions extends Table {
+  TextColumn get id => text()();
+  TextColumn get bookId =>
+      text().references(Books, #id, onDelete: KeyAction.cascade)();
+  TextColumn get chapterId => text().nullable()();
+  TextColumn get chunkStartId => text().nullable()();
+  TextColumn get chunkEndId => text().nullable()();
+
+  TextColumn get mode =>
+      textEnum<ReadingMode>().withDefault(const Constant('flow'))();
+
+  DateTimeColumn get startedAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get endedAt => dateTime().nullable()();
+  IntColumn get durationSeconds => integer().withDefault(const Constant(0))();
+  IntColumn get wordsRead => integer().withDefault(const Constant(0))();
+
+  /// Filled in at the end of a session, when the reader is asked. Never
+  /// demanded mid-reading.
+  IntColumn get comprehensionRating => integer().nullable()();
+  IntColumn get flowRating => integer().nullable()();
+  TextColumn get summary => text().nullable()();
+
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
   @override
   Set<Column<Object>> get primaryKey => <Column<Object>>{id};

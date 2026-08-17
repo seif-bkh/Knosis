@@ -26,6 +26,9 @@ dev_dependencies:
   # Code generation for drift. Generated sources are gitignored and built
   # in CI, since this workspace has no Dart SDK to run build_runner.
   drift_dev: ^2.34.5
+  # Used by the migration test to build a v1 database by hand before
+  # letting drift upgrade it.
+  sqlite3: ^3.5.1
   build_runner: ^2.16.0
 
 flutter:

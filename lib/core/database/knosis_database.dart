@@ -7,6 +7,7 @@ import 'package:drift/drift.dart';
 import '../../shared/models/book_format.dart';
 import '../../shared/models/book_status.dart';
 import '../../shared/models/chunk_status.dart';
+import '../../shared/models/reading_mode.dart';
 import 'tables.dart';
 
 // Re-exported so callers get the table definitions, the generated row
@@ -26,12 +27,12 @@ part 'knosis_database.g.dart';
 /// * `onUpgrade` must preserve user data - annotations and reading positions
 ///   are the most valuable thing in the app;
 /// * every migration gets a test before it ships.
-@DriftDatabase(tables: <Type>[Books, Chapters, Chunks])
+@DriftDatabase(tables: <Type>[Books, Chapters, Chunks, ReadingSessions])
 class KnosisDatabase extends _$KnosisDatabase {
   KnosisDatabase(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration {
@@ -40,9 +41,12 @@ class KnosisDatabase extends _$KnosisDatabase {
         await m.createAll();
       },
       onUpgrade: (Migrator m, int from, int to) async {
-        // Schema v1 is the first shipped schema, so there is nothing to
-        // migrate yet. When a v2 arrives, add ordered, tested steps here.
-        // Never drop or recreate a table to fix a schema problem.
+        // Steps are ordered and additive. Never drop or recreate a table to
+        // fix a schema problem: books, positions and annotations must
+        // survive every upgrade (AGENTS.md section 15).
+        if (from < 2) {
+          await m.createTable(readingSessions);
+        }
       },
       beforeOpen: (OpeningDetails details) async {
         // SQLite disables foreign keys per connection by default, so the
