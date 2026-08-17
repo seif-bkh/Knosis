@@ -10,14 +10,21 @@ dependencies:
   flutter:
     sdk: flutter
   # State management (AGENTS.md section 13). Plain Riverpod, without the
-  # code-generation package, so the repository stays buildable without a
-  # build_runner step.
+  # riverpod_generator package: providers are written by hand.
   flutter_riverpod: ^3.4.2
+  # Local persistence (AGENTS.md section 13). package:sqlite3, which drift
+  # depends on, ships its own native library from version 3.x, so the
+  # deprecated sqlite3_flutter_libs package is deliberately not used.
+  drift: ^2.34.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  # Code generation for drift. Generated sources are gitignored and built
+  # in CI, since this workspace has no Dart SDK to run build_runner.
+  drift_dev: ^2.34.5
+  build_runner: ^2.16.0
 
 flutter:
   uses-material-design: true
