@@ -90,8 +90,8 @@ void main() {
   });
 
   group('schema', () {
-    test('starts at version 1', () {
-      expect(db.schemaVersion, 1);
+    test('is at version 2', () {
+      expect(db.schemaVersion, 2);
     });
 
     test('creates every table of the reading core', () async {
