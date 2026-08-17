@@ -5,7 +5,9 @@ plugins {
 }
 
 android {
-    namespace = "com.knosis.knosis"
+    namespace = "com.knosis.reader"
+    // Tracks the SDK the pinned Flutter release is tested against (API 36 for
+    // Flutter 3.47.0). AGP 9.1.0 supports a maximum compileSdk of API 36.
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -15,12 +17,14 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.knosis.knosis"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        // Permanent Play Store identity for Knosis. Chosen deliberately
+        // (see docs/platform-configuration.md); changing it after release
+        // would create a second, unrelated app listing.
+        applicationId = "com.knosis.reader"
+        // Android 8.0. Deliberate choice, not a template default:
+        // see docs/platform-configuration.md for the rationale.
+        minSdk = 26
+        targetSdk = 36
         // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
         // is added automatically by Flutter. (https://developer.android.com/studio/build/configure-apk-splits#configure-APK-versions)
         // You can force using the value of versionCode by specifying the `-P force-version-code-ignoring-abi=true`
