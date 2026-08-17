@@ -9,6 +9,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # State management (AGENTS.md section 13). Plain Riverpod, without the
+  # code-generation package, so the repository stays buildable without a
+  # build_runner step.
+  flutter_riverpod: ^3.4.2
 
 dev_dependencies:
   flutter_test:

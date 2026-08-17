@@ -1,29 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'app/knosis_app.dart';
 
 void main() {
-  runApp(const KnosisApp());
-}
+  WidgetsFlutterBinding.ensureInitialized();
 
-class KnosisApp extends StatelessWidget {
-  const KnosisApp({super.key});
+  // Draw behind the status and navigation bars. Screens are responsible for
+  // honouring the resulting insets (AGENTS.md section 8), which is why every
+  // surface wraps its content in SafeArea or reads MediaQuery padding.
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Knosis',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2F8C87)),
-      ),
-      home: const HomeScreen(),
-    );
-  }
-}
-
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: Text('From words to worlds.')));
-  }
+  runApp(const ProviderScope(child: KnosisApp()));
 }
