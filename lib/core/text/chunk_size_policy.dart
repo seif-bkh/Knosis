@@ -1,10 +1,18 @@
 import '../../shared/models/cefr_level.dart';
+import 'reading_speed.dart';
 
-/// How many words a chunk should hold, per reader level.
+/// How many words a chunk should hold.
 ///
-/// Values come from PRODUCT_REPORT.md section 8.3. They are a target, not a
-/// guarantee: the chunker will overshoot [minWords] rather than cut a
-/// sentence in half.
+/// Two ways to size a passage:
+///
+/// * [ChunkSizePolicy.forReadingSpeed] - the one the reader uses. A passage
+///   is roughly one [defaultPassageDuration] of *this* reader's pace, so
+///   finishing one always feels like the same small effort.
+/// * [ChunkSizePolicy.forLevel] - the CEFR word ranges from
+///   PRODUCT_REPORT.md section 8.3, useful before a reading speed is known.
+///
+/// Values are a target, not a guarantee: the chunker will overshoot rather
+/// than cut a sentence in half.
 class ChunkSizePolicy {
   const ChunkSizePolicy({required this.minWords, required this.maxWords});
 
@@ -17,6 +25,29 @@ class ChunkSizePolicy {
       CefrLevel.c1 => const ChunkSizePolicy(minWords: 900, maxWords: 1500),
     };
   }
+
+  /// Sizes a passage as about [passageDuration] of reading at [speed].
+  factory ChunkSizePolicy.forReadingSpeed(
+    ReadingSpeed speed, {
+    Duration passageDuration = defaultPassageDuration,
+  }) {
+    final int target = speed.wordsIn(passageDuration);
+    int minWords = (target * 3 / 4).round();
+    if (minWords < shortestPassage) {
+      minWords = shortestPassage;
+    }
+    int maxWords = (target * 5 / 4).round();
+    if (maxWords < minWords) {
+      maxWords = minWords;
+    }
+    return ChunkSizePolicy(minWords: minWords, maxWords: maxWords);
+  }
+
+  /// A passage should feel like a sip of reading, not a chapter.
+  static const Duration defaultPassageDuration = Duration(minutes: 1);
+
+  /// Below this, a passage stops being a passage and starts being a line.
+  static const int shortestPassage = 20;
 
   final int minWords;
   final int maxWords;

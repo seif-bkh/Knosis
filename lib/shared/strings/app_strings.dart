@@ -30,6 +30,25 @@ abstract final class AppStrings {
       'Words and notes come back when revisiting them is useful. '
       'Read on, and Knosis will bring them to you.';
 
+  // Reader.
+  static const String readerStart = 'Start reading';
+  static const String readerContinue = 'Continue';
+  static const String readerEndOfText = 'That is the end of this text.';
+  static const String readerEmpty = 'There is nothing to read here yet.';
+
+  /// Position of the current passage, for a calm one-line status.
+  static String passageProgress(int position, int total) =>
+      'Passage $position of $total';
+
+  /// Rough reading time, phrased loosely on purpose: this is an invitation,
+  /// not a target to beat.
+  static String aboutMinutes(int minutes) {
+    if (minutes <= 1) {
+      return 'about a minute';
+    }
+    return 'about $minutes minutes';
+  }
+
   /// Copy for an import failure.
   ///
   /// The switch is exhaustive over the sealed [ImportFailure] hierarchy, so
