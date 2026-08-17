@@ -1,3 +1,15 @@
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+
+// TEMPORARY TOOL - delete once the layout question is answered.
+//
+// This workspace has no Dart SDK, so `dart format` cannot be run before
+// pushing and a formatting mistake costs a whole CI cycle to discover.
+// CI does have a Dart SDK, so this test formats the snippet below and
+// prints the canonical result into the job log.
+
+const String _subject = r'''
 import 'package:flutter_test/flutter_test.dart';
 import 'package:knosis/core/text/reading_speed.dart';
 import 'package:knosis/features/reader/domain/reading_speed_estimate.dart';
@@ -76,5 +88,29 @@ void main() {
 
       expect(_wpm(samples), isNull);
     });
+  });
+}
+''';
+
+void main() {
+  test('prints how dart format wants the subject laid out', () async {
+    final Directory dir = await Directory.systemTemp.createTemp('fmt');
+    final File file = File('${dir.path}/subject.dart');
+    await file.writeAsString(_subject);
+
+    final List<String> args = <String>['format', file.path];
+    final ProcessResult result = await Process.run('dart', args);
+    final String formatted = await file.readAsString();
+
+    stdout.writeln('FORMAT_EXIT ${result.exitCode}');
+    stdout.writeln('FORMAT_STDOUT ${result.stdout}');
+    stdout.writeln('FORMAT_STDERR ${result.stderr}');
+    stdout.writeln('=====FORMATTED_BEGIN=====');
+    stdout.writeln(formatted);
+    stdout.writeln('=====FORMATTED_END=====');
+
+    await dir.delete(recursive: true);
+
+    expect(result.exitCode, 0);
   });
 }
