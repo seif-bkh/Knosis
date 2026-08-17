@@ -79,7 +79,7 @@ jobs:
         # --output=none: report only, never rewrite files in CI.
         run: dart format --output=none --set-exit-if-changed .
 
-        - name: Generate code
+      - name: Generate code
         # Drift generated sources are not committed; they are built here so
         # analysis, tests and the Android build see them. Runs after the
         # format check so generated files are never format-gated.
