@@ -16,6 +16,8 @@ dependencies:
   # depends on, ships its own native library from version 3.x, so the
   # deprecated sqlite3_flutter_libs package is deliberately not used.
   drift: ^2.34.3
+  # Locates the app's private storage directory for the database file.
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:
