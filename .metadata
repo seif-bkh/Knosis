@@ -1,0 +1,24 @@
+# This file tracks properties of this Flutter project.
+# Used by Flutter tool to assess capabilities and perform upgrades etc.
+#
+# This file should be version controlled and do not change manually.
+
+version:
+  revision: "4cf24164269a5ebf0c16a028a00727d0e77bbb05"
+  channel: "stable"
+
+project_type: app
+
+# Tracks metadata for the flutter migrate command
+migration:
+  platforms:
+    - platform: root
+      create_revision: "4cf24164269a5ebf0c16a028a00727d0e77bbb05"
+      base_revision: "4cf24164269a5ebf0c16a028a00727d0e77bbb05"
+    - platform: android
+      create_revision: "4cf24164269a5ebf0c16a028a00727d0e77bbb05"
+      base_revision: "4cf24164269a5ebf0c16a028a00727d0e77bbb05"
+
+  # User provided section
+
+  # List of Local overrides for this project
