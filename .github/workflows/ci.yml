@@ -1,21 +1,27 @@
 # Knosis — Continuous Integration
 #
-# Validates every push/PR on the toolchain this project will standardize on:
-#   Flutter 3.47.0 (stable) · Dart 3.13.0 · JDK 17 (Temurin)
+# Toolchain (pinned deliberately, matches the scaffold in .metadata):
+#   Flutter 3.47.0 (stable, revision 4cf24164269a5ebf0c16a028a00727d0e77bbb05)
+#   Dart 3.13.x (bundled with that Flutter release; pubspec requires ^3.13.0)
+#   JDK 17 Temurin (AGP 9.1.0 minimum + default is JDK 17)
+#   Gradle 9.3.1 via the wrapper the Flutter tool generates
 #
-# Stages: checkout → Java → Flutter → Gradle setup → pub get → format → analyze
-#         → test → Android debug APK → Android App Bundle (.aab)
+# Stages: checkout -> Java -> Flutter -> Gradle cache -> pub get -> format
+#         -> analyze -> test -> Android debug APK -> Android App Bundle (.aab)
 #
-# NOTE: the release `.aab` step builds with the *debug* signing config that the
-# default Flutter Android template ships with. Production release signing is a
-# separate, later task (keystore + GitHub secrets); it is intentionally not part
+# NOTE: the `.aab` is built with the *debug* signing config that the default
+# Flutter Android template ships with. Real release signing (keystore +
+# repository secrets) is a separate, later task and is intentionally not part
 # of this baseline.
 
 name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      # Agent working branches, so CI runs before a PR exists.
+      - 'arena/**'
   pull_request:
   workflow_dispatch:
 
@@ -37,10 +43,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: ${{ env.JAVA_DISTRIBUTION }}
           java-version: ${{ env.JAVA_VERSION }}
@@ -54,16 +60,24 @@ jobs:
           cache: true
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-        # Caches and validates the Gradle wrapper / dependency cache.
+        uses: gradle/actions/setup-gradle@v5
         with:
+          # Only the default branch writes the shared Gradle cache; branches
+          # and PRs read it. Keeps the cache from being churned by every push.
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Record toolchain versions
+        run: |
+          flutter --version
+          dart --version
+          java -version
 
       - name: Resolve dependencies
         run: flutter pub get
 
       - name: Check formatting
-        run: dart format --set-exit-if-changed .
+        # --output=none: report only, never rewrite files in CI.
+        run: dart format --output=none --set-exit-if-changed .
 
       - name: Static analysis
         run: flutter analyze
@@ -78,10 +92,12 @@ jobs:
         run: flutter build appbundle
 
       - name: Upload Android artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: android-artifacts
           path: |
             build/app/outputs/flutter-apk/app-debug.apk
             build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: error
+          # ~110 MB per run; short retention keeps repo storage sane.
+          retention-days: 14
