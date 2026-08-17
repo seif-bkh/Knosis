@@ -48,20 +48,19 @@ Future<void> _addChunk(
 
 Future<List<String>> _tableNames(KnosisDatabase db) async {
   const String sql = "SELECT name FROM sqlite_master WHERE type = 'table'";
-  final Selectable<QueryRow> query = db.customSelect(sql);
-  final List<QueryRow> rows = await query.get();
-  return rows.map((QueryRow row) => row.read<String>('name')).toList();
+  final rows = await db.customSelect(sql).get();
+  return rows.map((row) => row.read<String>('name')).toList();
 }
 
 Future<void> _deleteBook(KnosisDatabase db, String id) async {
-  final DeleteStatement<Books, BookRow> statement = db.delete(db.books);
-  statement.where((Books b) => b.id.equals(id));
+  final statement = db.delete(db.books);
+  statement.where((t) => t.id.equals(id));
   await statement.go();
 }
 
 Future<void> _setPosition(KnosisDatabase db, String id) async {
-  final UpdateStatement<Books, BookRow> statement = db.update(db.books);
-  statement.where((Books b) => b.id.equals(id));
+  final statement = db.update(db.books);
+  statement.where((t) => t.id.equals(id));
   await statement.write(
     const BooksCompanion(
       currentChapterId: Value<String?>('chapter-1'),
@@ -72,10 +71,8 @@ Future<void> _setPosition(KnosisDatabase db, String id) async {
 }
 
 Future<List<ChunkRow>> _chunksInOrder(KnosisDatabase db) {
-  final SimpleSelectStatement<Chunks, ChunkRow> query = db.select(db.chunks);
-  query.orderBy(<OrderClauseGenerator<Chunks>>[
-    (Chunks c) => OrderingTerm.asc(c.orderIndex),
-  ]);
+  final query = db.select(db.chunks);
+  query.orderBy([(t) => OrderingTerm.asc(t.orderIndex)]);
   return query.get();
 }
 
@@ -164,7 +161,7 @@ void main() {
       await _addChunk(db, 'chunk-b', 'chapter-1', 1);
 
       final List<ChunkRow> chunks = await _chunksInOrder(db);
-      final List<String> ids = chunks.map((ChunkRow c) => c.id).toList();
+      final List<String> ids = chunks.map((c) => c.id).toList();
 
       expect(ids, <String>['chunk-a', 'chunk-b', 'chunk-c']);
     });
