@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_spacing.dart';
+import '../shared/strings/app_strings.dart';
 
 /// Temporary landing surface for the app shell.
 ///
@@ -22,10 +23,10 @@ class StartupPlaceholder extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Text('Knosis', style: theme.textTheme.displaySmall),
+                Text(AppStrings.appName, style: theme.textTheme.displaySmall),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  'From words to worlds.',
+                  AppStrings.tagline,
                   style: theme.textTheme.bodyLarge,
                   textAlign: TextAlign.center,
                 ),
