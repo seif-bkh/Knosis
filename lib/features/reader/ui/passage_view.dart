@@ -169,9 +169,7 @@ class _EdgeFade extends StatelessWidget {
                 begin: alignToTop
                     ? Alignment.topCenter
                     : Alignment.bottomCenter,
-                end: alignToTop
-                    ? Alignment.bottomCenter
-                    : Alignment.topCenter,
+                end: alignToTop ? Alignment.bottomCenter : Alignment.topCenter,
                 colors: <Color>[color, color.withValues(alpha: 0)],
               ),
             ),

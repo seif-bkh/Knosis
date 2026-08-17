@@ -68,8 +68,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
 }
 
 /// Two pixels of progress. Enough to orient, too little to nag.
-class _ProgressHairline extends StatelessWidget
-    implements PreferredSizeWidget {
+class _ProgressHairline extends StatelessWidget implements PreferredSizeWidget {
   const _ProgressHairline({required this.fraction, required this.color});
 
   final double fraction;
