@@ -6,7 +6,7 @@ import 'package:knosis/shared/models/book_format.dart';
 import 'package:knosis/shared/models/book_status.dart';
 import 'package:knosis/shared/models/chunk_status.dart';
 
-Future<void> _insertBook(KnosisDatabase db, String id) async {
+Future<void> _addBook(KnosisDatabase db, String id) async {
   final BooksCompanion row = BooksCompanion.insert(
     id: id,
     title: 'A Book',
@@ -17,11 +17,7 @@ Future<void> _insertBook(KnosisDatabase db, String id) async {
   await db.into(db.books).insert(row);
 }
 
-Future<void> _insertChapter(
-  KnosisDatabase db,
-  String id,
-  String bookId,
-) async {
+Future<void> _addChapter(KnosisDatabase db, String id, String bookId) async {
   final ChaptersCompanion row = ChaptersCompanion.insert(
     id: id,
     bookId: bookId,
@@ -32,7 +28,7 @@ Future<void> _insertChapter(
   await db.into(db.chapters).insert(row);
 }
 
-Future<void> _insertChunk(
+Future<void> _addChunk(
   KnosisDatabase db,
   String id,
   String chapterId,
@@ -110,7 +106,7 @@ void main() {
 
   group('books', () {
     test('round trips a book with its defaults', () async {
-      await _insertBook(db, 'book-1');
+      await _addBook(db, 'book-1');
 
       final BookRow book = await db.select(db.books).getSingle();
 
@@ -125,9 +121,9 @@ void main() {
     });
 
     test('stores the reading position in recoverable parts', () async {
-      await _insertBook(db, 'book-1');
-      await _insertChapter(db, 'chapter-1', 'book-1');
-      await _insertChunk(db, 'chunk-1', 'chapter-1', 0);
+      await _addBook(db, 'book-1');
+      await _addChapter(db, 'chapter-1', 'book-1');
+      await _addChunk(db, 'chunk-1', 'chapter-1', 0);
 
       await _setPosition(db, 'book-1');
 
@@ -142,15 +138,15 @@ void main() {
   group('referential integrity', () {
     test('rejects a chapter that belongs to no book', () async {
       await expectLater(
-        _insertChapter(db, 'chapter-1', 'missing-book'),
+        _addChapter(db, 'chapter-1', 'missing-book'),
         throwsA(isA<Exception>()),
       );
     });
 
     test('deleting a book removes its chapters and chunks', () async {
-      await _insertBook(db, 'book-1');
-      await _insertChapter(db, 'chapter-1', 'book-1');
-      await _insertChunk(db, 'chunk-1', 'chapter-1', 0);
+      await _addBook(db, 'book-1');
+      await _addChapter(db, 'chapter-1', 'book-1');
+      await _addChunk(db, 'chunk-1', 'chapter-1', 0);
 
       await _deleteBook(db, 'book-1');
 
@@ -161,11 +157,11 @@ void main() {
 
   group('chunks', () {
     test('read back in reading order', () async {
-      await _insertBook(db, 'book-1');
-      await _insertChapter(db, 'chapter-1', 'book-1');
-      await _insertChunk(db, 'chunk-c', 'chapter-1', 2);
-      await _insertChunk(db, 'chunk-a', 'chapter-1', 0);
-      await _insertChunk(db, 'chunk-b', 'chapter-1', 1);
+      await _addBook(db, 'book-1');
+      await _addChapter(db, 'chapter-1', 'book-1');
+      await _addChunk(db, 'chunk-c', 'chapter-1', 2);
+      await _addChunk(db, 'chunk-a', 'chapter-1', 0);
+      await _addChunk(db, 'chunk-b', 'chapter-1', 1);
 
       final List<ChunkRow> chunks = await _chunksInOrder(db);
       final List<String> ids = chunks.map((ChunkRow c) => c.id).toList();
@@ -174,9 +170,9 @@ void main() {
     });
 
     test('starts unread with no reads recorded', () async {
-      await _insertBook(db, 'book-1');
-      await _insertChapter(db, 'chapter-1', 'book-1');
-      await _insertChunk(db, 'chunk-1', 'chapter-1', 0);
+      await _addBook(db, 'book-1');
+      await _addChapter(db, 'chapter-1', 'book-1');
+      await _addChunk(db, 'chunk-1', 'chapter-1', 0);
 
       final ChunkRow chunk = await db.select(db.chunks).getSingle();
 

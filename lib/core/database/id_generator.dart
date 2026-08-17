@@ -13,10 +13,7 @@ abstract final class IdGenerator {
 
   /// A random RFC 4122 version 4 UUID, lower case, hyphenated.
   static String uuidV4() {
-    final List<int> bytes = List<int>.generate(
-      16,
-      (_) => _random.nextInt(256),
-    );
+    final List<int> bytes = List<int>.generate(16, _randomByte);
 
     // Version 4 in the high nibble of byte 6, RFC variant in byte 8.
     bytes[6] = (bytes[6] & 0x0F) | 0x40;
@@ -27,6 +24,8 @@ abstract final class IdGenerator {
         '${hex.substring(12, 16)}-${hex.substring(16, 20)}-'
         '${hex.substring(20)}';
   }
+
+  static int _randomByte(int _) => _random.nextInt(256);
 
   static String _hex(int byte) => byte.toRadixString(16).padLeft(2, '0');
 }
