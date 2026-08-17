@@ -18,7 +18,7 @@ Future<void> _pumpReader(
 }) async {
   await tester.pumpWidget(
     ProviderScope(
-      overrides: <Override>[databaseProvider.overrideWithValue(db)],
+      overrides: [databaseProvider.overrideWithValue(db)],
       child: MaterialApp(
         theme: AppTheme.light(),
         home: ReaderScreen(bookId: bookId),
